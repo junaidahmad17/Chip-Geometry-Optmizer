@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chip Area Optimizer</title>
+  <style>
+    /* Custom CSS styles for Chip Area Optimizer */
+
+    /* Body styles */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    /* Heading styles */
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+
+    /* Form styles */
+    form {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    .highlight {
+      font-weight: bold;
+      color: red;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .inputField {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    }
+    button[type="submit"] {
+      background-color: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* Output styles */
+    #outputBestRon,
+    #outputBestCount
+    {
+      margin-top: 20px;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 4px;
+    }
+
+    #optimizedValuesBestRon,
+    #numChips_Ron,
+    #ronDiff_Ron,
+    #optimizedValuesBestCount,
+    #numChips_count,
+    #ronDiff_Count,
+    #currRon,
+    #currCount,
+    #timeTaken {
+      margin-bottom: 10px;
+    }
+
+    #optimizedValuesBestRon strong {
+      color: red;
+      font-weight: bold;
+    }
+
+    #optimizedValuesBestCount strong {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1 onclick="window.location.href='/'">Chip Area Optimizer</h1>
+
+  <form id="inputForm" method="post" action="/optimize">
+    <label for="chipRasterX">Chip Raster X [mm]:</label>
+    <input type="number" id="chipRasterX" name="chipRasterX" step="any" required>
+
+    <label for="chipRasterY">Chip Raster Y [mm]:</label>
+    <input type="number" id="chipRasterY" name="chipRasterY" step="any" required>
+
+    <label for="reticleSize">Reticle Size:</label>
+    <select id="reticleSize" name="reticleSize" class="inputField" required>
+    <option value="50x70" selected>50x70</option>
+    </select>
+
+    <label for="clipSize">Clip Size:</label>
+    <select id="clipSize" name="clipSize" class="inputField" required>
+    <option value="9" selected>9</option>
+    <option value="8">8</option>
+    </select>
+
+    <label for="ronTol">Ron Tolerence (%):</label>
+    <input type="number" id="ronTol" name="ronTol" step="any" required>
+
+    <label for="maxIter">Max Iterations:</label>
+    <input type="number" id="maxIter" name="maxIter" step="any" required>
+
+    <button type="submit" id="optimizeButton">Optimize</button>
+  </form>
+
+  <div id="outputBestRon">
+    <p id="optimizedValuesBestRon"></p>
+    <p id="numChips_Ron"></p>
+    <p id="ronDiff_Ron"></p>
+  </div>
+  <div id="outputBestCount">
+    <p id="optimizedValuesBestCount"></p>
+    <p id="numChips_count"></p>
+    <p id="ronDiff_Count"></p>
+  </div>
+
+  <p id="currRon"></p>
+  <p id="currCount"></p>
+  <p id="timeTaken"></p>
+
+  <script>
+    // Handle form submission
+    document.getElementById("inputForm").addEventListener("submit", function (event) {
+    event.preventDefault(); // Prevent form submission
+    showLoadingMessage(); // Display loading message
+    optimize(); // Call the optimize function
+    });
+
+    // Show loading message
+    function showLoadingMessage() {
+    // Clear previous results if any
+    document.getElementById("optimizedValuesBestRon").textContent = "";
+    document.getElementById("numChips_Ron").textContent = "";
+    document.getElementById("ronDiff_Ron").textContent = "";
+    document.getElementById("optimizedValuesBestCount").textContent = "";
+    document.getElementById("numChips_count").textContent = "";
+    document.getElementById("ronDiff_Count").textContent = "";
+    document.getElementById("currRon").textContent = "";
+    document.getElementById("currCount").textContent = "";
+    document.getElementById("timeTaken").textContent = "Calculating... Please wait.";
+    }
+
+    // Optimize function
+    function optimize() {
+        var chipRasterX = parseFloat(document.getElementById("chipRasterX").value);
+        var chipRasterY = parseFloat(document.getElementById("chipRasterY").value);
+        var reticleSize = document.getElementById("reticleSize").value;
+        var clipSize = document.getElementById("clipSize").value;
+
+        var ronTol = parseFloat(document.getElementById("ronTol").value);
+        var maxIter = parseFloat(document.getElementById("maxIter").value);
+        var startTime = new Date().getTime();
+        // Prepare the payload
+        var payload = {
+        chipRasterX: chipRasterX,
+        chipRasterY: chipRasterY,
+        reticleSize: reticleSize,
+        clipSize: clipSize,
+
+        ronTol: ronTol,
+        maxIter: maxIter,
+        startTime: startTime
+        };
+        
+        // Send the POST request to the Flask app
+        fetch('/optimize', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+        })
+        .then(function (response) {
+            if (response.ok) {
+            return response.json();
+            } else {
+            throw new Error('Error: ' + response.status);
+            }
+        })
+        .then(function (data) {
+            // Handle the response data and update the output elements
+            var xOpt_best_ron = data.xOpt_best_ron; // Replace with the actual key for xOpt
+            var yOpt_best_ron = data.yOpt_best_ron; // Replace with the actual key for yOpt
+            var ronOpt_best_ron = data.ronOpt_best_ron; // Replace with the actual key for ronOpt
+            var numChips_best_ron = data.numChips_best_ron; // Replace with the actual key for numChips
+            var diff_opt_ron = data.diff_opt_ron; // Replace with the actual key for numChips
+
+            var xOpt_best_count = data.xOpt_best_count; // Replace with the actual key for xOpt
+            var yOpt_best_count = data.yOpt_best_count; // Replace with the actual key for yOpt
+            var ronOpt_best_count = data.ronOpt_best_count; // Replace with the actual key for ronOpt
+            var numChips_best_count = data.numChips_best_count; // Replace with the actual key for numChips
+            var diff_opt_count = data.diff_opt_count; // Replace with the actual key for numChips
+
+            var currRon = data.curr_ron;
+            var currCount = data.curr_utilization;
+            var startTime = data.startTime; // Replace with the actual key for startTime
+
+            document.getElementById("optimizedValuesBestRon").innerHTML = "<strong>X (opt) [mm]:</strong> " + xOpt_best_ron +
+            "<br><strong>Y (opt) [mm]:</strong> " + yOpt_best_ron +
+            "<br><strong>Ron (opt):</strong> " + ronOpt_best_ron;
+            document.getElementById("numChips_Ron").innerHTML = "<strong>Reticle Utilization:</strong> " + numChips_best_ron;
+            document.getElementById("ronDiff_Ron").innerHTML = "<strong>Ron Diff (%):</strong> " + diff_opt_ron;
+
+            document.getElementById("optimizedValuesBestCount").innerHTML = "<strong>X (opt) [mm]:</strong> " + xOpt_best_count +
+            "<br><strong>Y (opt) [mm]:</strong> " + yOpt_best_count +
+            "<br><strong>Ron (opt):</strong> " + ronOpt_best_count;
+            document.getElementById("numChips_count").innerHTML = "<strong>Reticle Utilization:</strong> " + numChips_best_count;
+            document.getElementById("ronDiff_Count").innerHTML = "<strong>Ron Diff (%):</strong> " + diff_opt_count;
+        // Calculate and display the time taken
+        
+
+        // Perform time-consuming operations here
+
+        var endTime = new Date().getTime();
+        var elapsedTime = endTime - startTime; // Time elapsed in milliseconds
+
+        // Convert milliseconds to minutes and seconds
+        var minutes = Math.floor(elapsedTime / 60000);
+        var seconds = Math.floor((elapsedTime % 60000) / 1000);
+        
+        // Current Ron
+        document.getElementById("currRon").textContent = "Current Ron: " + currRon;
+        // Current Chip Count
+        document.getElementById("currCount").textContent = "Current Count: " + currCount;
+        // Display the time taken
+        document.getElementById("timeTaken").textContent = "Time taken: " + minutes + " minutes " + seconds + " seconds";
+        })
+        .catch(function (error) {
+            console.error('Error:', error);
+        });
+    }
+
+  // Function to calculate the time taken in minutes
+  function calculateTimeTaken(startTime, endTime) {
+    var elapsedMinutes = (endTime - startTime) / (1000 * 60); // Convert milliseconds to minutes
+    return elapsedMinutes.toFixed(2);
+  }
+</script>
+</body>
+</html>
